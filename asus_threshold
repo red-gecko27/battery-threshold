@@ -1,0 +1,105 @@
+#!/bin/bash
+#author         : https://github.com/red-gecko27
+#date           : 19/08/20
+#version        : 0.1
+#usage          : ./asus_threshold --help
+#bash_version   : 5.0.17(1)-release
+#description    : Battery threshold (Asus Zenbook UX430)
+#see before     : wiki.archlinux.org/index.php/ASUS_Zenbook_UX430/UX530
+
+
+# Ec register
+REG_R_THRESHOLD='\_SB.PCI0.LPCB.EC0.RRAM 0x3af'
+REG_W_THRESHOLD='\_SB.PCI0.LPCB.EC0.WRAM 0x3af'
+REG_R_BATTERY_LV='\_SB.PCI0.LPCB.EC0.RRAM 0x3b0'
+
+function print_usage {
+    printf "Usage: $0 [Action [Options]] ...
+    Action:
+        -s, --set [30-100] \n\t\t change current threshold
+        --show \n\t\t show actual threshold
+        --battery \n\t\t show battery percentage found in ec register
+    Option:
+        -q, --quiet \n\t\t disable log
+        -f, --force \n\t\t skip confirmation\n"
+}
+
+# Optarg
+SHORT=s:hvf
+LONG=set:,help,verbose,force,show,battery
+
+OPTS=$(getopt --options $SHORT --long $LONG --name "$0" -- "$@")
+
+function log_display { # (erreur_code, msg)
+    if [[ $1 -eq 84 ]]; then
+        echo -e "[\e[1m\e[31mError\e[0m] - $2" 1>&2
+        exit 1
+    elif [[ $1 -eq 0 && ! -z "$VERBOSE" ]]; then
+        echo -e "[\e[1m\e[32mOK\e[0m] - $2"
+    fi
+}
+
+if [[ $? != 0 || -z "$1" ]]; then
+    log_display 84 "Bad argument, please try with -h or --help"
+fi
+
+eval set -- "$OPTS"
+
+while true ; do
+    case "$1" in
+        -s | --set)     THRESHOLD="$2"; shift 2;;
+        -v | --verbose) VERBOSE=true; shift;;
+        -f | --force)   FORCE=true; shift;;
+        -h | --help)    print_usage;REG_R_BATTERY_LV exit 0;;
+        --show)         SHOW=true; shift;;
+        --battery)      BATTERY=true; shift;;
+        --)             shift; break;;
+        *)              echo "Bad arguments!";  exit 1;;
+  esac
+done
+
+# Requirement
+if ! lsmod | grep -wq acpi_call; then
+    log_display 84 "acpi_call module not loaded, see modprobe."
+elif [[ $EUID -ne 0 ]]; then
+    log_display 84 "This script need root privilege."
+else
+    log_display 0 "Module acpi_call found"
+fi
+
+function read_acpi {
+    echo "${1}" > /proc/acpi/call
+    printf "%d\n" $(sed 's/\x0.*//g' /proc/acpi/call)
+}
+
+ACPI_BAT=`read_acpi "$REG_R_BATTERY_LV"`
+ACPI_THRESHOLD=`read_acpi "$REG_R_THRESHOLD"`
+
+if [[ "$BATTERY" == "true" ]]; then
+    echo "$ACPI_BAT"; exit 0;
+elif [[ "$SHOW" == "true" ]]; then
+    echo "$ACPI_THRESHOLD"; exit 0;
+elif [[ "$THRESHOLD" == "" ]]; then
+    log_display 84 "Bad argument, please try with -h or --help"
+fi
+
+# Change part
+
+if [[ $THRESHOLD -lt 30 || $THRESHOLD -gt 100 ]]; then
+    log_display 84 "bad threshold value: '$THRESHOLD'"
+fi
+
+hex_value=`printf "0x%x\n" $THRESHOLD`
+
+if [[ "$FORCE" == "true" ]]; then
+    echo "$REG_W_THRESHOLD $hex_value" > /proc/acpi/call; exit 0
+fi
+
+while true; do
+    read -p "Do you wish process with $THRESHOLD ($hex_value) [y/n] " yn
+    case $yn in
+        [Yy]* ) echo "$REG_W_THRESHOLD $hex_value" > /proc/acpi/call ; break;;
+        [Nn]* ) echo "Canceled" ; exit;;
+        * ) echo "Please answer y or n.";;
+    esac
+done
