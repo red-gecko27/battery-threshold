@@ -8,4 +8,4 @@ Most newer Zenbooks supports specifying a charge stop threshold. This scripts is
 Optional: `cp asus-threshold /usr/bin`  
 
 ## Usage
-./asus_threshold --help
+./battery_threshold --help
