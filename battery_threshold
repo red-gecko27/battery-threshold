@@ -83,22 +83,30 @@ elif [[ "$THRESHOLD" == "" ]]; then
     log_display 84 "Bad argument, please try with -h or --help"
 fi
 
-# Change part
+# Check value
 
 if [[ $THRESHOLD -lt 30 || $THRESHOLD -gt 100 ]]; then
     log_display 84 "bad threshold value: '$THRESHOLD'"
 fi
 
-hex_value=`printf "0x%x\n" $THRESHOLD`
+BAT0_FILE=`cat /sys/class/power_supply/BAT0/capacity`
+
+if [[ $BAT0_FILE -ne 0 && $BAT0_FILE -ne $ACPI_BAT && $(($BAT0_FILE+1)) -ne $ACPI_BAT ]]; then
+    log_display 84 "bad battery value: '$ACPI_BAT'"
+fi
+
+# Process
+
+HEX_VALUE=`printf "0x%x\n" $THRESHOLD`
 
 if [[ "$FORCE" == "true" ]]; then
-    echo "$REG_W_THRESHOLD $hex_value" > /proc/acpi/call; exit 0
+    echo "$REG_W_THRESHOLD $HEX_VALUE" > /proc/acpi/call; exit 0
 fi
 
 while true; do
-    read -p "Do you wish process with $THRESHOLD ($hex_value) [y/n] " yn
+    read -p "Do you wish process with $THRESHOLD ($HEX_VALUE) [y/n] " yn
     case $yn in
-        [Yy]* ) echo "$REG_W_THRESHOLD $hex_value" > /proc/acpi/call ; break;;
+        [Yy]* ) echo "$REG_W_THRESHOLD $HEX_VALUE" > /proc/acpi/call ; break;;
         [Nn]* ) echo "Canceled" ; exit;;
         * ) echo "Please answer y or n.";;
     esac
