@@ -3,9 +3,9 @@ Most newer Zenbooks supports specifying a charge stop threshold. This scripts is
 
 ## Setup:
 `git clone https://github.com/red-gecko27/battery-threshold.git`  
-`cd asus-threshold`  
-`chmod 755 asus-threshold`  
-Optional: `cp asus-threshold /usr/bin`  
+`cd battery_threshold`  
+`chmod 755 battery_threshold`  
+Optional: `cp battery_threshold /usr/bin`  
 
 ## Usage
-./asus_threshold --help
+./battery_threshold --help
