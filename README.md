@@ -6,7 +6,6 @@ see [[1][5]] [[2][6]].
 ---
 ---
 
-<br />
 
 # battery-threshold (Zenbook)
 
